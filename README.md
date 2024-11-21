@@ -48,7 +48,55 @@ This repository demonstrates how to implement group-specific reply restrictions 
 
 ```php
 // Add a custom role called "Group Creator"
+Adds a custom "Enable Feature" checkbox in the group creation form via create-group-form.php.
 function add_group_creator_role() {
     add_role('group_creator', 'Group Creator', array('read' => true, 'edit_posts' => true));
 }
 add_action('init', 'add_group_creator_role');
+
+### 2. Group Creation Form
+Adds a custom "Enable Feature" checkbox in the group creation form via create-group-form.php
+<div class="um-group-field" data-key="enable_feature">
+    <label for="um_groups_enable_feature">
+        <input type="checkbox" name="enable_feature" value="1" <?php checked($enable_feature, '1'); ?> />
+        <?php _e("Allow others to reply (Creator-Only Reply)", "um-groups"); ?>
+    </label>
+</div>
+
+### 3. Reply Restriction Logic
+Restricts reply permissions based on the enable_feature checkbox value via rest-api.php.
+add_filter('better_messages_can_user_reply', 'restrict_reply_based_on_group_feature', 10, 2);
+function restrict_reply_based_on_group_feature($can_reply, $thread_id) {
+    $user_id = Better_Messages()->functions->get_current_user_id();
+    $group_id = Better_Messages()->functions->get_thread_meta($thread_id, 'group_id');
+    $enable_feature = get_post_meta($group_id, '_um_groups_enable_feature', true);
+    $group_creator_id = get_post_field('post_author', $group_id);
+
+    if ($enable_feature === '1' && $user_id !== $group_creator_id) {
+        return new WP_Error('rest_forbidden', 'Sorry, only the group creator can reply in this group');
+    }
+
+    return $can_reply;
+}
+### 4. Database Updates
+Group Meta Data: Stored in the wp_postmeta table under the key _um_groups_enable_feature.
+User Roles: Temporarily saved in the wp_usermeta table under the key _previous_roles.
+
+### 5. Testing the Implementation
+Group Creation Form:
+
+Verify the "Enable Feature" checkbox appears and saves correctly.
+Role Management:
+
+Confirm dynamic role upgrades and downgrades based on feature activation.
+Reply Restrictions:
+
+Test with different configurations to ensure permissions work as expected.
+
+### How to Use
+Clone this repositor:
+Place the modified files in their respective directories within your WordPress installation.
+Follow the testing guidelines to validate the implementation.
+
+### Contributions
+Feel free to open issues or submit pull requests if you encounter any bugs or have ideas for enhancements.
